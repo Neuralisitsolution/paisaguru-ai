@@ -43,13 +43,23 @@ export default function AdminDashboard() {
     fetchData();
   }, [authenticated]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === (process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'paisaguru2025')) {
-      setAuthenticated(true);
-      sessionStorage.setItem('admin_auth', 'true');
-    } else {
-      alert('Invalid password');
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAuthenticated(true);
+        sessionStorage.setItem('admin_auth', 'true');
+      } else {
+        alert('Invalid password');
+      }
+    } catch {
+      alert('Login failed. Check your connection.');
     }
   };
 

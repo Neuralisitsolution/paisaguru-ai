@@ -6,7 +6,13 @@ import { generateArticle } from '@/lib/ai-engine';
 import { checkArticleQuality } from '@/lib/quality-checker';
 import { formatSlug, calculateReadingTime } from '@/lib/seo-helpers';
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Protect cron endpoint
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('secret') !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     await connectDB();
     const news = await fetchFinanceNews();

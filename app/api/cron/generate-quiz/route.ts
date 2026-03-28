@@ -3,7 +3,13 @@ import connectDB from '@/lib/mongodb';
 import Quiz from '@/models/Quiz';
 import { generateQuiz } from '@/lib/ai-engine';
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Protect cron endpoint
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('secret') !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     await connectDB();
     const categories = ['income-tax', 'investments', 'insurance', 'banking', 'mutual-funds'];
