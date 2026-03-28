@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     // Send welcome email via Brevo SMTP (non-blocking)
     sendWelcomeEmail(email, name).catch((err) => {
-      console.error('Failed to send welcome email:', err.message);
+      console.error('Failed to send welcome email:', err?.message, err?.response, err?.code);
     });
 
     return NextResponse.json({ message: 'Successfully subscribed!' }, { status: 201 });

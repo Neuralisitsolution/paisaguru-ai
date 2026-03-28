@@ -1,16 +1,12 @@
 import Link from 'next/link';
+import connectDB from '@/lib/mongodb';
+import Article from '@/models/Article';
 import ArticleCard from '@/components/ArticleCard';
 import TrustBadges from '@/components/TrustBadges';
 import NewsTicker from '@/components/NewsTicker';
 import AIChatBot from '@/components/AIChatBot';
 
-const featuredArticles = [
-  { title: 'How to Save Income Tax for Salaried Employees in India 2025', slug: 'how-to-save-income-tax-2025', excerpt: 'Complete guide to saving income tax with all available deductions under old and new regime for FY 2025-26.', category: 'income-tax', author: { name: 'Priya Sharma' }, publishedAt: '2025-03-15', readingTime: 8, viewCount: 15420, isExpertReviewed: true },
-  { title: 'Best SIP Plans for Beginners in 2025: Complete Guide', slug: 'best-sip-plans-beginners-2025', excerpt: 'Start your mutual fund journey with these expert-picked SIP plans. Step-by-step guide for first-time investors.', category: 'mutual-funds', author: { name: 'Rajesh Kumar' }, publishedAt: '2025-03-12', readingTime: 10, viewCount: 12340, isExpertReviewed: true },
-  { title: 'Home Loan Interest Rates 2025: Which Bank Offers the Best Rate?', slug: 'home-loan-interest-rates-2025', excerpt: 'Compare home loan interest rates from SBI, HDFC, ICICI, and other banks. Find the lowest EMI option.', category: 'loans', author: { name: 'Amit Verma' }, publishedAt: '2025-03-10', readingTime: 7, viewCount: 8930, isExpertReviewed: true },
-  { title: 'Term Insurance vs Whole Life Insurance: Which is Better?', slug: 'term-vs-whole-life-insurance', excerpt: 'Detailed comparison of term insurance and whole life insurance with real cost calculations and expert recommendations.', category: 'insurance', author: { name: 'Sunita Rao' }, publishedAt: '2025-03-08', readingTime: 9, viewCount: 7650, isExpertReviewed: true },
-  { title: 'New Tax Regime vs Old Tax Regime: Detailed Comparison 2025', slug: 'new-vs-old-tax-regime-2025', excerpt: 'Find out which tax regime saves you more money with our detailed break-even analysis and examples.', category: 'income-tax', author: { name: 'Priya Sharma' }, publishedAt: '2025-03-05', readingTime: 8, viewCount: 20150, isExpertReviewed: true },
-];
+export const dynamic = 'force-dynamic';
 
 const calculators = [
   { name: 'Income Tax', href: '/calculators/income-tax', icon: '🧾', desc: 'Old vs New Regime' },
@@ -27,7 +23,30 @@ const expertPicks = [
   { title: 'Health insurance for parents saves up to ₹50K in tax', author: 'Sunita Rao, Insurance Expert', category: 'insurance' },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Fetch real articles from MongoDB
+  let articles: any[] = [];
+  try {
+    await connectDB();
+    const dbArticles = await Article.find({ status: 'published' })
+      .sort({ publishedAt: -1, createdAt: -1 })
+      .limit(6)
+      .lean();
+    articles = dbArticles.map((a: any) => ({
+      title: a.title,
+      slug: a.slug,
+      excerpt: a.excerpt || a.metaDescription || '',
+      category: a.category,
+      author: { name: a.author?.name || 'PaisaGuru Team' },
+      publishedAt: a.publishedAt ? new Date(a.publishedAt).toISOString().split('T')[0] : new Date(a.createdAt).toISOString().split('T')[0],
+      readingTime: a.readingTime || Math.ceil((a.wordCount || 500) / 200),
+      viewCount: a.views || 0,
+      isExpertReviewed: true,
+    }));
+  } catch {
+    // DB not connected — show empty state
+  }
+
   return (
     <>
       <NewsTicker />
@@ -109,18 +128,20 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Featured Articles */}
-        <section className="py-10">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="section-title !mb-0">Latest Expert Articles</h2>
-            <Link href="/category/income-tax" className="text-sm font-semibold text-primary-600 hover:underline">View All &rarr;</Link>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredArticles.slice(0, 3).map(article => (
-              <ArticleCard key={article.slug} {...article} />
-            ))}
-          </div>
-        </section>
+        {/* Featured Articles — Real from MongoDB */}
+        {articles.length > 0 && (
+          <section className="py-10">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="section-title !mb-0">Latest Expert Articles</h2>
+              <Link href="/articles" className="text-sm font-semibold text-primary-600 hover:underline">View All &rarr;</Link>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {articles.slice(0, 3).map(article => (
+                <ArticleCard key={article.slug} {...article} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Expert Picks */}
         <section className="py-10">
@@ -136,27 +157,42 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Most Read */}
-        <section className="py-10">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="section-title !mb-0">Most Read This Week</h2>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-6">
-            {featuredArticles.slice(0, 4).map((article, i) => (
-              <Link key={article.slug} href={`/articles/${article.slug}`} className="flex gap-4 items-start card p-4 group">
-                <span className="font-heading font-bold text-3xl text-primary-200 mt-1">{String(i + 1).padStart(2, '0')}</span>
-                <div>
-                  <h3 className="font-heading font-semibold text-sm text-gray-900 group-hover:text-primary-600 transition-colors mb-1">{article.title}</h3>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span>{article.author.name}</span>
-                    <span>{article.readingTime} min read</span>
-                    <span>{article.viewCount.toLocaleString('en-IN')} views</span>
+        {/* Most Read — Real from MongoDB */}
+        {articles.length > 0 && (
+          <section className="py-10">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="section-title !mb-0">Most Read This Week</h2>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-6">
+              {articles.slice(0, 4).map((article, i) => (
+                <Link key={article.slug} href={`/articles/${article.slug}`} className="flex gap-4 items-start card p-4 group">
+                  <span className="font-heading font-bold text-3xl text-primary-200 mt-1">{String(i + 1).padStart(2, '0')}</span>
+                  <div>
+                    <h3 className="font-heading font-semibold text-sm text-gray-900 group-hover:text-primary-600 transition-colors mb-1">{article.title}</h3>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span>{article.author.name}</span>
+                      <span>{article.readingTime} min read</span>
+                      <span>{(article.viewCount || 0).toLocaleString('en-IN')} views</span>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* No articles fallback */}
+        {articles.length === 0 && (
+          <section className="py-10">
+            <div className="card p-8 text-center">
+              <h2 className="font-heading font-bold text-2xl text-gray-900 mb-3">Expert Articles Coming Soon</h2>
+              <p className="text-gray-600 mb-6 max-w-lg mx-auto">
+                Our team is working on expert finance articles. Meanwhile, try our free calculators!
+              </p>
+              <Link href="/calculators" className="btn-primary">Explore Calculators</Link>
+            </div>
+          </section>
+        )}
 
         {/* Newsletter CTA */}
         <section className="py-10">
@@ -195,11 +231,11 @@ export default function HomePage() {
         '@context': 'https://schema.org',
         '@type': 'WebSite',
         name: 'PaisaGuru',
-        url: 'https://paisaguru.com',
+        url: process.env.NEXT_PUBLIC_SITE_URL || 'https://paisaguru.com',
         description: 'India\'s #1 personal finance guide with free calculators and expert advice.',
         potentialAction: {
           '@type': 'SearchAction',
-          target: { '@type': 'EntryPoint', urlTemplate: 'https://paisaguru.com/search?q={search_term_string}' },
+          target: { '@type': 'EntryPoint', urlTemplate: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://paisaguru.com'}/search?q={search_term_string}` },
           'query-input': 'required name=search_term_string',
         },
       })}} />

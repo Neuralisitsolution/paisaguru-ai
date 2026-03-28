@@ -1,17 +1,23 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
-  port: parseInt(process.env.EMAIL_PORT || '587'),
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
+    port: parseInt(process.env.EMAIL_PORT || '587'),
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+}
 
 function isConfigured(): boolean {
-  return !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+  const configured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+  if (!configured) {
+    console.warn('Email SMTP not configured. EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'MISSING', 'EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'MISSING');
+  }
+  return configured;
 }
 
 export async function sendWelcomeEmail(to: string, name?: string) {
@@ -22,6 +28,7 @@ export async function sendWelcomeEmail(to: string, name?: string) {
 
   const firstName = name?.split(' ')[0] || 'there';
 
+  const transporter = getTransporter();
   await transporter.sendMail({
     from: process.env.EMAIL_FROM || 'PaisaGuru AI <noreply@paisaguru.com>',
     to,
@@ -85,6 +92,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
     return;
   }
 
+  const transporter = getTransporter();
   await transporter.sendMail({
     from: process.env.EMAIL_FROM || 'PaisaGuru AI <noreply@paisaguru.com>',
     to,
