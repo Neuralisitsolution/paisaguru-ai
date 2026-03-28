@@ -79,7 +79,7 @@ export async function generateArticle(
   author: typeof AUTHORS[0];
 }> {
   ensureApiKey();
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   const prompt = getPrompt(templateType, topic, category);
 
   const result = await model.generateContent(prompt);
@@ -100,6 +100,21 @@ export async function generateArticle(
   };
 }
 
+function cleanJsonString(raw: string): string {
+  // Remove markdown code fences and language tags
+  return raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
+}
+
+function isValidTitle(title: string): boolean {
+  if (!title || title.length < 10) return false;
+  // Reject if title looks like raw JSON/markdown artifacts
+  const bad = ['```', '{', '}', '"title"', '"content"', '\\n'];
+  return !bad.some(b => title.includes(b));
+}
+
 function parseArticleResponse(text: string): {
   title: string;
   content: string;
@@ -107,25 +122,71 @@ function parseArticleResponse(text: string): {
   metaDescription: string;
   faqs: { question: string; answer: string }[];
 } {
-  // Try to parse structured JSON response
+  // Strategy 1: Extract JSON from code fences (handles ```json ... ``` with any whitespace)
   try {
-    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
+    const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/i);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[1]);
-      return {
-        title: parsed.title || '',
-        content: parsed.content || '',
-        excerpt: parsed.excerpt || '',
-        metaDescription: parsed.metaDescription || parsed.meta_description || '',
-        faqs: parsed.faqs || [],
-      };
+      const cleaned = cleanJsonString(jsonMatch[1]);
+      const parsed = JSON.parse(cleaned);
+      if (parsed.title && isValidTitle(parsed.title)) {
+        return {
+          title: parsed.title.trim(),
+          content: (parsed.content || '').trim(),
+          excerpt: (parsed.excerpt || '').substring(0, 200).trim(),
+          metaDescription: (parsed.metaDescription || parsed.meta_description || '').substring(0, 160).trim(),
+          faqs: Array.isArray(parsed.faqs) ? parsed.faqs : [],
+        };
+      }
     }
   } catch {
-    // Fall through to manual parsing
+    // Fall through
   }
 
-  // Manual parsing fallback
-  const lines = text.split('\n');
+  // Strategy 2: Try parsing entire response as JSON (no code fences)
+  try {
+    const trimmed = text.trim();
+    if (trimmed.startsWith('{')) {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.title && isValidTitle(parsed.title)) {
+        return {
+          title: parsed.title.trim(),
+          content: (parsed.content || '').trim(),
+          excerpt: (parsed.excerpt || '').substring(0, 200).trim(),
+          metaDescription: (parsed.metaDescription || parsed.meta_description || '').substring(0, 160).trim(),
+          faqs: Array.isArray(parsed.faqs) ? parsed.faqs : [],
+        };
+      }
+    }
+  } catch {
+    // Fall through
+  }
+
+  // Strategy 3: Find any JSON object in the text
+  try {
+    const jsonObjectMatch = text.match(/\{[\s\S]*"title"\s*:\s*"[\s\S]*?\}/);
+    if (jsonObjectMatch) {
+      const parsed = JSON.parse(jsonObjectMatch[0]);
+      if (parsed.title && isValidTitle(parsed.title)) {
+        return {
+          title: parsed.title.trim(),
+          content: (parsed.content || '').trim(),
+          excerpt: (parsed.excerpt || '').substring(0, 200).trim(),
+          metaDescription: (parsed.metaDescription || parsed.meta_description || '').substring(0, 160).trim(),
+          faqs: Array.isArray(parsed.faqs) ? parsed.faqs : [],
+        };
+      }
+    }
+  } catch {
+    // Fall through
+  }
+
+  // Strategy 4: Manual parsing fallback — strip all code fences first
+  const cleanText = text
+    .replace(/```(?:json)?\s*/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+  const lines = cleanText.split('\n');
   let title = '';
   let content = '';
   let excerpt = '';
@@ -133,21 +194,29 @@ function parseArticleResponse(text: string): {
   const faqs: { question: string; answer: string }[] = [];
 
   // Extract title from first heading
-  const titleMatch = text.match(/^#\s+(.+)$/m);
-  if (titleMatch) {
+  const titleMatch = cleanText.match(/^#\s+(.+)$/m);
+  if (titleMatch && isValidTitle(titleMatch[1].trim())) {
     title = titleMatch[1].trim();
   } else {
-    title = lines[0]?.replace(/^#+\s*/, '').trim() || 'Untitled Article';
+    // Find first non-empty line that looks like a title
+    for (const line of lines) {
+      const cleaned = line.replace(/^#+\s*/, '').replace(/^\*+/, '').trim();
+      if (cleaned.length >= 15 && cleaned.length <= 120 && !cleaned.startsWith('{') && !cleaned.startsWith('```')) {
+        title = cleaned;
+        break;
+      }
+    }
+    if (!title) title = 'Untitled Article';
   }
 
   // Extract meta description
-  const metaMatch = text.match(/Meta Description:\s*(.+)/i);
+  const metaMatch = cleanText.match(/Meta Description:\s*(.+)/i);
   if (metaMatch) {
     metaDescription = metaMatch[1].trim();
   }
 
   // Extract FAQs
-  const faqSection = text.match(/(?:## )?(?:FAQs?|Frequently Asked Questions)([\s\S]*?)(?=##\s|$)/i);
+  const faqSection = cleanText.match(/(?:## )?(?:FAQs?|Frequently Asked Questions)([\s\S]*?)(?=##\s|$)/i);
   if (faqSection) {
     const faqText = faqSection[1];
     const questionBlocks = faqText.split(/(?:###?\s*(?:Q\d*[.:])?\s*)/);
@@ -164,14 +233,14 @@ function parseArticleResponse(text: string): {
     }
   }
 
-  // Content is the full text (minus any meta lines)
-  content = text
+  // Content is the full text minus meta lines
+  content = cleanText
     .replace(/^Meta Description:.*$/gm, '')
     .replace(/^Excerpt:.*$/gm, '')
     .trim();
 
-  // Generate excerpt from first paragraph after title
-  const excerptMatch = text.match(/^(?!#)(?!Meta)(?!Excerpt)(.{50,200}[.!?])/m);
+  // Generate excerpt
+  const excerptMatch = cleanText.match(/^(?!#)(?!Meta)(?!Excerpt)(.{50,200}[.!?])/m);
   if (excerptMatch) {
     excerpt = excerptMatch[1].trim();
   } else {
@@ -197,7 +266,7 @@ export async function generateQuiz(
   }[]
 > {
   ensureApiKey();
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const prompt = `You are an Indian personal finance expert. Generate ${count} multiple-choice quiz questions about "${category}" for an Indian audience.
 
@@ -257,7 +326,7 @@ export async function chatResponse(
   history: string[] = []
 ): Promise<string> {
   ensureApiKey();
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const contextHistory = history
     .slice(-10)

@@ -18,6 +18,7 @@ export interface IArticle extends Document {
   status: 'draft' | 'review' | 'published' | 'rejected';
   qualityScore: number;
   wordCount: number;
+  readingTime: number;
   expertReviewed: boolean;
   factChecked: boolean;
   templateType: number;
@@ -25,6 +26,8 @@ export interface IArticle extends Document {
   shares: number;
   createdAt: Date;
   updatedAt: Date;
+  metaTitle: string;
+  tags: string[];
   publishedAt: Date | null;
 }
 
@@ -57,11 +60,14 @@ const ArticleSchema = new Schema<IArticle>(
     },
     qualityScore: { type: Number, default: 0 },
     wordCount: { type: Number, default: 0 },
+    readingTime: { type: Number, default: 0 },
     expertReviewed: { type: Boolean, default: false },
     factChecked: { type: Boolean, default: false },
     templateType: { type: Number, default: 1 },
     views: { type: Number, default: 0 },
     shares: { type: Number, default: 0 },
+    metaTitle: { type: String, default: '' },
+    tags: [{ type: String }],
     publishedAt: { type: Date, default: null },
   },
   {

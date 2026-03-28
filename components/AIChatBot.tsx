@@ -55,15 +55,14 @@ export default function AIChatBot() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-all flex items-center justify-center"
-          aria-label="Open AI Chat"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-all px-4 py-3 sm:px-5 sm:py-3.5"
+          aria-label="Ask PaisaGuru AI"
         >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-secondary-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-            AI
-          </span>
+          <span className="text-sm font-semibold hidden sm:inline">Ask PaisaGuru AI</span>
+          <span className="text-sm font-semibold sm:hidden">AI Chat</span>
         </button>
       )}
 

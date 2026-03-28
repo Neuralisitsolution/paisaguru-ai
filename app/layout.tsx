@@ -3,6 +3,7 @@ import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BackToTop from '@/components/BackToTop';
+import AdBanner from '@/components/AdBanner';
 
 export const metadata: Metadata = {
   title: {
@@ -71,6 +72,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen flex flex-col">
         <Header />
+        <div className="w-full py-2 flex justify-center bg-white border-b border-gray-100">
+          <AdBanner format="leaderboard" slot="header-leaderboard" />
+        </div>
         <main className="flex-grow">{children}</main>
         <Footer />
         <BackToTop />

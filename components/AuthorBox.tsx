@@ -6,7 +6,7 @@ interface AuthorBoxProps {
   bio: string;
   image?: string;
   slug: string;
-  expertise: string[];
+  expertise?: string[];
 }
 
 export default function AuthorBox({ name, title, bio, slug, expertise }: AuthorBoxProps) {
@@ -23,11 +23,13 @@ export default function AuthorBox({ name, title, bio, slug, expertise }: AuthorB
           </div>
           <p className="text-sm text-primary-600 font-medium mb-2">{title}</p>
           <p className="text-sm text-gray-600 mb-3">{bio}</p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {expertise.map(tag => (
-              <span key={tag} className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded-full">{tag}</span>
-            ))}
-          </div>
+          {expertise && expertise.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {expertise.map(tag => (
+                <span key={tag} className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded-full">{tag}</span>
+              ))}
+            </div>
+          )}
           <Link href={`/about#${slug}`} className="text-sm text-primary-600 hover:underline font-medium">
             View Profile &rarr;
           </Link>

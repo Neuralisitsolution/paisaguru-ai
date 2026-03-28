@@ -56,9 +56,9 @@ const teamMembers = [
 ];
 
 const trustSignals = [
-  { number: '5M+', label: 'Monthly Readers' },
-  { number: '2,500+', label: 'Expert Articles' },
-  { number: '50+', label: 'Financial Calculators' },
+  { number: '50K+', label: 'Monthly Readers' },
+  { number: '100+', label: 'Expert Articles' },
+  { number: '8', label: 'Free Calculators' },
   { number: '4.8/5', label: 'Reader Trust Rating' },
 ];
 

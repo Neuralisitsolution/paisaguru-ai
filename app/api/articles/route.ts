@@ -4,6 +4,7 @@ import Article from '@/models/Article';
 import { generateArticle } from '@/lib/ai-engine';
 import { checkArticleQuality } from '@/lib/quality-checker';
 import { formatSlug, calculateReadingTime } from '@/lib/seo-helpers';
+import { insertAffiliateLinks } from '@/lib/affiliate-links';
 
 export async function GET(request: Request) {
   try {
@@ -54,10 +55,12 @@ export async function POST(request: Request) {
     const wordCount = generated.content.split(/\s+/).length;
     const readingTime = calculateReadingTime(generated.content);
 
+    const contentWithLinks = insertAffiliateLinks(generated.content, category);
+
     const article = await Article.create({
       title: generated.title,
       slug,
-      content: generated.content,
+      content: contentWithLinks,
       excerpt: generated.excerpt,
       category,
       author: generated.author,
@@ -69,13 +72,14 @@ export async function POST(request: Request) {
       wordCount,
       readingTime,
       templateType: templateType || 1,
-      status: qualityResult.passed ? 'review' : 'draft',
+      status: qualityResult.passed ? 'published' : 'draft',
+      publishedAt: qualityResult.passed ? new Date() : null,
     });
 
     return NextResponse.json({
       article,
       quality: qualityResult,
-      message: qualityResult.passed ? 'Article created and sent for review' : 'Article quality too low, saved as draft',
+      message: qualityResult.passed ? 'Article created and published' : 'Article quality too low, saved as draft',
     }, { status: 201 });
   } catch (error: any) {
     const message = error?.message?.includes('MONGODB_URI')
