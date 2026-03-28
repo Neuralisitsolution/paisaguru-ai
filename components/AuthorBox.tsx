@@ -14,7 +14,7 @@ export default function AuthorBox({ name, title, bio, slug, expertise }: AuthorB
     <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
       <div className="flex items-start gap-4">
         <div className="w-16 h-16 rounded-full bg-primary-200 flex items-center justify-center text-primary-700 font-heading font-bold text-xl flex-shrink-0">
-          {name.split(' ').map(n => n[0]).join('')}
+          {name?.split(' ').map(n => n[0]).join('') || 'PG'}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
