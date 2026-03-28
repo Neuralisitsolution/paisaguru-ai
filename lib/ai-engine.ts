@@ -1,7 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getPrompt } from './prompt-rotator';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+function ensureApiKey() {
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your-gemini-api-key-here') {
+    throw new Error(
+      'GEMINI_API_KEY is not configured. Get a free key at https://aistudio.google.com/app/apikey and add it to .env.local'
+    );
+  }
+}
 
 export const AUTHORS = [
   {
@@ -69,6 +78,7 @@ export async function generateArticle(
   faqs: { question: string; answer: string }[];
   author: typeof AUTHORS[0];
 }> {
+  ensureApiKey();
   const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
   const prompt = getPrompt(templateType, topic, category);
 
@@ -186,6 +196,7 @@ export async function generateQuiz(
     explanation: string;
   }[]
 > {
+  ensureApiKey();
   const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
   const prompt = `You are an Indian personal finance expert. Generate ${count} multiple-choice quiz questions about "${category}" for an Indian audience.
@@ -245,6 +256,7 @@ export async function chatResponse(
   question: string,
   history: string[] = []
 ): Promise<string> {
+  ensureApiKey();
   const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
   const contextHistory = history

@@ -8,6 +8,7 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('');
   const [stats, setStats] = useState({ total: 0, published: 0, review: 0, draft: 0 });
   const [recentArticles, setRecentArticles] = useState<any[]>([]);
+  const [dbError, setDbError] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && sessionStorage.getItem('admin_auth') === 'true') {
@@ -29,9 +30,15 @@ export default function AdminDashboard() {
         const pub = await pubRes.json();
         const rev = await revRes.json();
         const dr = await draftRes.json();
-        setStats({ total: all.total || 0, published: pub.total || 0, review: rev.total || 0, draft: dr.total || 0 });
-        setRecentArticles(all.articles || []);
-      } catch {}
+        if (all.error) {
+          setDbError(all.error);
+        } else {
+          setStats({ total: all.total || 0, published: pub.total || 0, review: rev.total || 0, draft: dr.total || 0 });
+          setRecentArticles(all.articles || []);
+        }
+      } catch {
+        setDbError('Cannot connect to the server. Make sure .env.local is configured.');
+      }
     };
     fetchData();
   }, [authenticated]);
@@ -91,6 +98,20 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {dbError && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h3 className="font-heading font-bold text-yellow-800 mb-2">Setup Required</h3>
+            <p className="text-sm text-yellow-700 mb-3">{dbError}</p>
+            <div className="text-sm text-yellow-800 space-y-1">
+              <p><strong>To get started:</strong></p>
+              <p>1. Copy <code className="bg-yellow-100 px-1 rounded">.env.example</code> to <code className="bg-yellow-100 px-1 rounded">.env.local</code></p>
+              <p>2. Add your <strong>MongoDB Atlas</strong> connection string (free at cloud.mongodb.com)</p>
+              <p>3. Add your <strong>Gemini API</strong> key (free at aistudio.google.com)</p>
+              <p>4. Restart the dev server with <code className="bg-yellow-100 px-1 rounded">npm run dev</code></p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {statCards.map(s => (
             <div key={s.label} className="card p-5">

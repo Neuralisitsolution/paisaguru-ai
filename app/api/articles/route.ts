@@ -28,8 +28,11 @@ export async function GET(request: Request) {
     const total = await Article.countDocuments(query);
 
     return NextResponse.json({ articles, total, page, limit });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch articles' }, { status: 500 });
+  } catch (error: any) {
+    const message = error?.message?.includes('MONGODB_URI')
+      ? 'Database not configured. Add MONGODB_URI to .env.local'
+      : 'Failed to fetch articles';
+    return NextResponse.json({ error: message, articles: [], total: 0, page: 1, limit: 10 }, { status: 500 });
   }
 }
 
@@ -74,7 +77,12 @@ export async function POST(request: Request) {
       quality: qualityResult,
       message: qualityResult.passed ? 'Article created and sent for review' : 'Article quality too low, saved as draft',
     }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to create article' }, { status: 500 });
+  } catch (error: any) {
+    const message = error?.message?.includes('MONGODB_URI')
+      ? 'Database not configured. Add MONGODB_URI to .env.local'
+      : error?.message?.includes('API_KEY')
+      ? 'Gemini API key not configured. Add GEMINI_API_KEY to .env.local'
+      : 'Failed to create article: ' + (error?.message || 'Unknown error');
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

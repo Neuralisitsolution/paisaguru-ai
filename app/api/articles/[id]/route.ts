@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Article from '@/models/Article';
 
+function handleError(error: any, action: string) {
+  const message = error?.message?.includes('MONGODB_URI')
+    ? 'Database not configured. Add MONGODB_URI to .env.local'
+    : `Failed to ${action}: ${error?.message || 'Unknown error'}`;
+  return NextResponse.json({ error: message }, { status: 500 });
+}
+
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     await connectDB();
@@ -11,7 +18,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
     return NextResponse.json(article);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch article' }, { status: 500 });
+    return handleError(error, 'fetch article');
   }
 }
 
@@ -31,7 +38,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
     return NextResponse.json(article);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to update article' }, { status: 500 });
+    return handleError(error, 'update article');
   }
 }
 
@@ -44,6 +51,6 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     }
     return NextResponse.json({ message: 'Article deleted' });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete article' }, { status: 500 });
+    return handleError(error, 'delete article');
   }
 }
