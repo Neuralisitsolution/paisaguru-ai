@@ -72,6 +72,19 @@ const CATEGORY_TOPICS: Record<string, string[]> = {
   ],
 };
 
+// GET method — just open in browser: http://localhost:3000/api/admin/generate-articles?password=YOUR_PASSWORD
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const password = searchParams.get('password') || '';
+
+  if (password !== process.env.ADMIN_PASSWORD && password !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized. Add ?password=YOUR_ADMIN_PASSWORD to the URL' }, { status: 401 });
+  }
+
+  // Convert to same logic as POST
+  return handleGeneration(password, ALL_CATEGORIES, 1);
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -80,6 +93,18 @@ export async function POST(request: Request) {
     if (adminPass !== process.env.ADMIN_PASSWORD && adminPass !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const requestedCategories = body.categories || ALL_CATEGORIES;
+    const articlesPerCategory = body.count || 1;
+    return handleGeneration(adminPass, requestedCategories, articlesPerCategory);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed: ' + message }, { status: 500 });
+  }
+}
+
+async function handleGeneration(adminPass: string, requestedCategories: string[], articlesPerCategory: number) {
+  try {
 
     await connectDB();
 
@@ -99,10 +124,7 @@ export async function POST(request: Request) {
       await Article.deleteMany({ _id: { $in: ids } });
     }
 
-    // Step 2: Generate articles for requested categories (or all)
-    const requestedCategories = body.categories || ALL_CATEGORIES;
-    const articlesPerCategory = body.count || 1;
-
+    // Step 2: Generate articles for requested categories
     const results: string[] = [];
     let totalCreated = 0;
 
