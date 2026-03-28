@@ -115,6 +115,24 @@ function isValidTitle(title: string): boolean {
   return !bad.some(b => title.includes(b));
 }
 
+function extractParsedResult(parsed: Record<string, unknown>): {
+  title: string;
+  content: string;
+  excerpt: string;
+  metaDescription: string;
+  faqs: { question: string; answer: string }[];
+} | null {
+  const title = (parsed.title as string || '').trim();
+  if (!isValidTitle(title)) return null;
+  return {
+    title,
+    content: (parsed.content as string || '').trim(),
+    excerpt: (parsed.excerpt as string || '').substring(0, 200).trim(),
+    metaDescription: ((parsed.metaDescription || parsed.meta_description) as string || '').substring(0, 160).trim(),
+    faqs: Array.isArray(parsed.faqs) ? parsed.faqs : [],
+  };
+}
+
 function parseArticleResponse(text: string): {
   title: string;
   content: string;
@@ -122,58 +140,77 @@ function parseArticleResponse(text: string): {
   metaDescription: string;
   faqs: { question: string; answer: string }[];
 } {
-  // Strategy 1: Extract JSON from code fences (handles ```json ... ``` with any whitespace)
+  // Strategy 1: Extract JSON from code fences — find the LARGEST code block (the actual article JSON)
   try {
-    const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/i);
-    if (jsonMatch) {
-      const cleaned = cleanJsonString(jsonMatch[1]);
-      const parsed = JSON.parse(cleaned);
-      if (parsed.title && isValidTitle(parsed.title)) {
-        return {
-          title: parsed.title.trim(),
-          content: (parsed.content || '').trim(),
-          excerpt: (parsed.excerpt || '').substring(0, 200).trim(),
-          metaDescription: (parsed.metaDescription || parsed.meta_description || '').substring(0, 160).trim(),
-          faqs: Array.isArray(parsed.faqs) ? parsed.faqs : [],
-        };
+    const allCodeBlocks: RegExpExecArray[] = [];
+    const codeBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/gi;
+    let cbMatch: RegExpExecArray | null;
+    while ((cbMatch = codeBlockRegex.exec(text)) !== null) {
+      allCodeBlocks.push(cbMatch);
+    }
+    // Sort by length descending — the article JSON is always the longest block
+    allCodeBlocks.sort((a, b) => b[1].length - a[1].length);
+    for (const match of allCodeBlocks) {
+      try {
+        const cleaned = cleanJsonString(match[1]);
+        const parsed = JSON.parse(cleaned);
+        const result = extractParsedResult(parsed);
+        if (result) return result;
+      } catch {
+        // Try next block
       }
     }
   } catch {
     // Fall through
   }
 
-  // Strategy 2: Try parsing entire response as JSON (no code fences)
+  // Strategy 2: Strip ALL code fences and try parsing the remaining text as JSON
+  try {
+    const stripped = text.replace(/```(?:json)?\s*\n?/gi, '').replace(/```/g, '').trim();
+    if (stripped.startsWith('{')) {
+      const parsed = JSON.parse(stripped);
+      const result = extractParsedResult(parsed);
+      if (result) return result;
+    }
+  } catch {
+    // Fall through
+  }
+
+  // Strategy 3: Try parsing entire response as JSON (no code fences at all)
   try {
     const trimmed = text.trim();
     if (trimmed.startsWith('{')) {
       const parsed = JSON.parse(trimmed);
-      if (parsed.title && isValidTitle(parsed.title)) {
-        return {
-          title: parsed.title.trim(),
-          content: (parsed.content || '').trim(),
-          excerpt: (parsed.excerpt || '').substring(0, 200).trim(),
-          metaDescription: (parsed.metaDescription || parsed.meta_description || '').substring(0, 160).trim(),
-          faqs: Array.isArray(parsed.faqs) ? parsed.faqs : [],
-        };
-      }
+      const result = extractParsedResult(parsed);
+      if (result) return result;
     }
   } catch {
     // Fall through
   }
 
-  // Strategy 3: Find any JSON object in the text
+  // Strategy 4: Find the outermost JSON object containing "title" using brace matching
   try {
-    const jsonObjectMatch = text.match(/\{[\s\S]*"title"\s*:\s*"[\s\S]*?\}/);
-    if (jsonObjectMatch) {
-      const parsed = JSON.parse(jsonObjectMatch[0]);
-      if (parsed.title && isValidTitle(parsed.title)) {
-        return {
-          title: parsed.title.trim(),
-          content: (parsed.content || '').trim(),
-          excerpt: (parsed.excerpt || '').substring(0, 200).trim(),
-          metaDescription: (parsed.metaDescription || parsed.meta_description || '').substring(0, 160).trim(),
-          faqs: Array.isArray(parsed.faqs) ? parsed.faqs : [],
-        };
+    const titleIdx = text.indexOf('"title"');
+    if (titleIdx > -1) {
+      // Walk backwards to find the opening brace
+      let braceStart = -1;
+      for (let i = titleIdx; i >= 0; i--) {
+        if (text[i] === '{') { braceStart = i; break; }
+      }
+      if (braceStart > -1) {
+        // Walk forward counting braces to find matching close
+        let depth = 0;
+        let braceEnd = -1;
+        for (let i = braceStart; i < text.length; i++) {
+          if (text[i] === '{') depth++;
+          if (text[i] === '}') { depth--; if (depth === 0) { braceEnd = i; break; } }
+        }
+        if (braceEnd > -1) {
+          const jsonStr = text.substring(braceStart, braceEnd + 1);
+          const parsed = JSON.parse(jsonStr);
+          const result = extractParsedResult(parsed);
+          if (result) return result;
+        }
       }
     }
   } catch {
