@@ -28,6 +28,12 @@ export function checkArticleQuality(content: string, title: string): QualityResu
     issues.push('Title is too long (maximum 100 characters)');
     score -= 5;
   }
+  // Reject titles that contain raw JSON/markdown artifacts
+  const badTitlePatterns = ['```', '"title"', '"content"', '{', '}'];
+  if (title && badTitlePatterns.some(p => title.includes(p))) {
+    issues.push('Title contains raw JSON or markdown artifacts');
+    score -= 50;
+  }
 
   // Heading structure check
   const h2Count = (content.match(/^## /gm) || []).length;
