@@ -22,14 +22,12 @@ const calculatorLinks = [
 ];
 
 const categories = [
-  { name: 'Mutual Funds', href: '/articles/category/mutual-funds' },
-  { name: 'Stock Market', href: '/articles/category/stock-market' },
-  { name: 'Tax Planning', href: '/articles/category/tax-planning' },
-  { name: 'Insurance', href: '/articles/category/insurance' },
-  { name: 'Personal Finance', href: '/articles/category/personal-finance' },
-  { name: 'Banking', href: '/articles/category/banking' },
-  { name: 'Real Estate', href: '/articles/category/real-estate' },
-  { name: 'Retirement Planning', href: '/articles/category/retirement-planning' },
+  { name: 'Mutual Funds', href: '/category/mutual-funds' },
+  { name: 'Stock Market', href: '/category/stock-market' },
+  { name: 'Income Tax', href: '/category/income-tax' },
+  { name: 'Insurance', href: '/category/insurance' },
+  { name: 'Investments', href: '/category/investments' },
+  { name: 'Banking', href: '/category/banking' },
 ];
 
 const trustBadges = [
@@ -244,7 +242,7 @@ export default function Footer() {
               &copy; {currentYear} PaisaGuru AI. All rights reserved.
             </p>
             <div className="flex items-center gap-4">
-              <Link href="/privacy" className="text-xs text-gray-500 hover:text-primary-400 transition-colors">
+              <Link href="/privacy-policy" className="text-xs text-gray-500 hover:text-primary-400 transition-colors">
                 Privacy Policy
               </Link>
               <Link href="/terms" className="text-xs text-gray-500 hover:text-primary-400 transition-colors">
